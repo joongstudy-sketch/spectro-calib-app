@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none';" />
+<title>Spectro Calib Studio</title>
+<link rel="icon" href="build/icon_256.png" />
+<link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"></span>
+      <h1>SPECTRO CALIB STUDIO <span style="opacity:.55;font-weight:600;">v5</span></h1>
+      <span class="subtitle">Main ↔ Sub spectrometer calibration · 100% offline</span>
+    </div>
+    <div class="tabbar">
+      <button class="tab-btn active" id="tab-btn-train" data-tab="train">🎓 Train<span class="badge-count" id="train-count"></span></button>
+      <button class="tab-btn" id="tab-btn-test" data-tab="test">🧪 Test<span class="badge-count" id="test-count"></span></button>
+      <button class="tab-btn" id="tab-btn-iv" data-tab="iv">💡 Iv Calc<span class="badge-count" id="iv-count"></span></button>
+    </div>
+  </div>
+
+  <div class="main-scroll">
+
+    <!-- ======================= TRAIN TAB ======================= -->
+    <div class="tab-panel active" id="tab-train">
+
+      <div class="run-bar">
+        <button class="btn primary large" id="btn-train" disabled>▶ Run training</button>
+        <span class="hint" id="train-status">Load Main and Sub data below, then run training.</span>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Load training data</h2>
+          <span class="hint">Drag &amp; drop .abs / .csv files, or paste data directly. Each data row = 1 spectrum (Chip + Name + intensity vs. wavelength). Comma, tab and semicolon-delimited files are all supported automatically. Click any loaded row to inspect its fit.</span>
+        </div>
+        <div class="dropgrid">
+          <div class="dropzone role-main" id="dropzone-train-main">
+            <div class="dropzone-head">
+              <div class="dropzone-title"><span class="role-dot"></span>Main (reference)</div>
+              <div class="dropzone-actions">
+                <button class="btn small" data-action="paste" data-tab="train" data-role="main">Paste data</button>
+                <button class="btn small" data-action="browse" data-tab="train" data-role="main">Choose files…</button>
+                <button class="btn small ghost-danger" data-action="clear" data-tab="train" data-role="main">Clear</button>
+              </div>
+            </div>
+            <input type="file" id="file-input-train-main" multiple accept=".abs,.csv,.txt" style="display:none" />
+            <div id="paste-train-main" class="paste-panel" style="display:none">
+              <textarea class="paste-box" placeholder="Paste .abs / CSV content here…"></textarea>
+              <div class="toolbar">
+                <button class="btn primary small" data-action="import-paste" data-tab="train" data-role="main">Import</button>
+                <button class="btn small" data-action="cancel-paste" data-tab="train" data-role="main">Cancel</button>
+              </div>
+            </div>
+            <div id="list-train-main"><div class="dropzone-empty">No data loaded.<br/>Drag an .abs file here, or use the buttons above.</div></div>
+          </div>
+
+          <div class="dropzone role-sub" id="dropzone-train-sub">
+            <div class="dropzone-head">
+              <div class="dropzone-title"><span class="role-dot"></span>Sub (device under test)</div>
+              <div class="dropzone-actions">
+                <button class="btn small" data-action="paste" data-tab="train" data-role="sub">Paste data</button>
+                <button class="btn small" data-action="browse" data-tab="train" data-role="sub">Choose files…</button>
+                <button class="btn small ghost-danger" data-action="clear" data-tab="train" data-role="sub">Clear</button>
+              </div>
+            </div>
+            <input type="file" id="file-input-train-sub" multiple accept=".abs,.csv,.txt" style="display:none" />
+            <div id="paste-train-sub" class="paste-panel" style="display:none">
+              <textarea class="paste-box" placeholder="Paste .abs / CSV content here…"></textarea>
+              <div class="toolbar">
+                <button class="btn primary small" data-action="import-paste" data-tab="train" data-role="sub">Import</button>
+                <button class="btn small" data-action="cancel-paste" data-tab="train" data-role="sub">Cancel</button>
+              </div>
+            </div>
+            <div id="list-train-sub"><div class="dropzone-empty">No data loaded.<br/>Drag an .abs file here, or use the buttons above.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="section-train-pairs" style="display:none">
+        <div class="section-head">
+          <h2>Matched sample pairs</h2>
+          <span class="hint">Automatically matched by Chip + Name (exact match, e.g. "LopWL05" only pairs with "LopWL05"). All pairs listed here will be used for training.</span>
+        </div>
+        <div class="table-wrap"><table><thead><tr>
+          <th>Chip (sample)</th><th>Name</th><th class="num">Main points</th><th class="num">Sub points</th>
+        </tr></thead><tbody id="train-pairs-tbody"></tbody></table></div>
+      </div>
+
+      <div class="section" id="train-results"></div>
+    </div>
+
+    <!-- ======================= TEST TAB ======================= -->
+    <div class="tab-panel" id="tab-test">
+
+      <div class="run-bar">
+        <button class="btn primary large" id="btn-test" disabled>▶ Run test</button>
+        <button class="btn" id="btn-export" disabled>Export report (JSON)</button>
+        <button class="btn" id="btn-export-csv" disabled>Export predicted spectra (CSV)</button>
+        <span class="hint" id="test-status">Train a calibration first, then load Sub (and optionally Main) test data below.</span>
+      </div>
+
+      <div class="section" id="calib-status-wrap">
+        <div id="calib-panel"></div>
+        <input type="file" id="file-input-calib-load" accept=".json" style="display:none" />
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Load test data</h2>
+          <span class="hint">Sub data is required. Main data is optional — provide it to see accuracy metrics against ground truth; without it you'll only see the calibrated prediction. Click any loaded row to inspect its fit.</span>
+        </div>
+        <div class="dropgrid">
+          <div class="dropzone role-main" id="dropzone-test-main">
+            <div class="dropzone-head">
+              <div class="dropzone-title"><span class="role-dot"></span>Main <span class="optional-tag">(optional, for accuracy check)</span></div>
+              <div class="dropzone-actions">
+                <button class="btn small" data-action="paste" data-tab="test" data-role="main">Paste data</button>
+                <button class="btn small" data-action="browse" data-tab="test" data-role="main">Choose files…</button>
+                <button class="btn small ghost-danger" data-action="clear" data-tab="test" data-role="main">Clear</button>
+              </div>
+            </div>
+            <input type="file" id="file-input-test-main" multiple accept=".abs,.csv,.txt" style="display:none" />
+            <div id="paste-test-main" class="paste-panel" style="display:none">
+              <textarea class="paste-box" placeholder="Paste .abs / CSV content here…"></textarea>
+              <div class="toolbar">
+                <button class="btn primary small" data-action="import-paste" data-tab="test" data-role="main">Import</button>
+                <button class="btn small" data-action="cancel-paste" data-tab="test" data-role="main">Cancel</button>
+              </div>
+            </div>
+            <div id="list-test-main"><div class="dropzone-empty">No data loaded.<br/>Drag an .abs file here, or use the buttons above.</div></div>
+          </div>
+
+          <div class="dropzone role-sub" id="dropzone-test-sub">
+            <div class="dropzone-head">
+              <div class="dropzone-title"><span class="role-dot"></span>Sub <span class="optional-tag">(required)</span></div>
+              <div class="dropzone-actions">
+                <button class="btn small" data-action="paste" data-tab="test" data-role="sub">Paste data</button>
+                <button class="btn small" data-action="browse" data-tab="test" data-role="sub">Choose files…</button>
+                <button class="btn small ghost-danger" data-action="clear" data-tab="test" data-role="sub">Clear</button>
+              </div>
+            </div>
+            <input type="file" id="file-input-test-sub" multiple accept=".abs,.csv,.txt" style="display:none" />
+            <div id="paste-test-sub" class="paste-panel" style="display:none">
+              <textarea class="paste-box" placeholder="Paste .abs / CSV content here…"></textarea>
+              <div class="toolbar">
+                <button class="btn primary small" data-action="import-paste" data-tab="test" data-role="sub">Import</button>
+                <button class="btn small" data-action="cancel-paste" data-tab="test" data-role="sub">Cancel</button>
+              </div>
+            </div>
+            <div id="list-test-sub"><div class="dropzone-empty">No data loaded.<br/>Drag an .abs file here, or use the buttons above.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="test-results"></div>
+    </div>
+
+    <!-- ======================= IV CALCULATOR TAB ======================= -->
+    <div class="tab-panel" id="tab-iv">
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Formula</h2>
+          <span class="hint">Luminous intensity from raw spectral data, using the CIE 1931 V(λ) photopic luminosity function and a machine-calibrated constant K.</span>
+        </div>
+        <div class="calib-panel-box">
+          <div class="model-eq" style="font-size:13px;color:var(--text)">Iv [mcd] = K × Σ P(λ) · V(λ) · Δλ</div>
+          <div class="footnote">
+            <b>Iv</b> — Luminous Intensity (mcd, Mean Spherical Candela) &nbsp;·&nbsp;
+            <b>K</b> — machine calibration constant &nbsp;·&nbsp;
+            <b>P(λ)</b> — raw spectral intensity &nbsp;·&nbsp;
+            <b>V(λ)</b> — CIE 1931 photopic luminosity function (1nm, 380–780nm) &nbsp;·&nbsp;
+            <b>Δλ</b> — wavelength step &nbsp;·&nbsp; integrated by the trapezoidal rule.
+          </div>
+          <div class="flow-diagram" style="margin-top:12px">
+            <div class="flow-step dynamic"><div class="flow-title">Input</div>P(λ) raw spectrum</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step dynamic"><div class="flow-title">Multiply</div>× V(λ) CIE 1931</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step fixed"><div class="flow-title">Integrate</div>Σ P·V·Δλ over range</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step fixed"><div class="flow-title">Scale</div>× K (machine const)</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step output"><div class="flow-title">Output</div>Iv [mcd]</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Machine constant K &amp; integration range</h2>
+          <span class="hint">K = Km × (1000/4π) × C_radiometric — instrument-specific, must be (re-)calibrated whenever the detector changes. This K is shared: it's also used for the Iv shown on the Train/Test tabs.</span>
+        </div>
+        <div class="calib-panel-box">
+          <div class="calib-fields">
+            <div class="calib-field">
+              <label>K — machine constant</label>
+              <input type="number" id="iv-k-input" step="any" />
+              <div class="def">Km (683 lm/W, fixed) × 1000/4π (79.5775, integrating-sphere geometry) × C_radiometric (instrument-specific).</div>
+            </div>
+            <div class="calib-field">
+              <label>Integration range min (nm)</label>
+              <input type="number" id="iv-wlmin-input" step="1" />
+            </div>
+            <div class="calib-field">
+              <label>Integration range max (nm)</label>
+              <input type="number" id="iv-wlmax-input" step="1" />
+            </div>
+          </div>
+          <div class="calib-actions">
+            <button class="btn primary small" id="btn-iv-apply-settings">Apply</button>
+            <button class="btn small" id="btn-iv-save-settings">Save settings (.json)</button>
+            <button class="btn small" id="btn-iv-load-settings">Load settings…</button>
+            <input type="file" id="file-input-iv-settings" accept=".json" style="display:none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Load spectra</h2>
+          <span class="hint">Drag &amp; drop .abs / .csv files, or paste data. Click 🗑 to remove a row.</span>
+        </div>
+        <div class="dropzone role-main" id="dropzone-iv-spectra" style="border-top-color:var(--main-color)">
+          <div class="dropzone-head">
+            <div class="dropzone-title"><span class="role-dot" style="background:var(--main-color)"></span>Spectra</div>
+            <div class="dropzone-actions">
+              <button class="btn small" data-action="paste" data-tab="iv" data-role="spectra">Paste data</button>
+              <button class="btn small" data-action="browse" data-tab="iv" data-role="spectra">Choose files…</button>
+              <button class="btn small ghost-danger" id="btn-iv-clear">Clear</button>
+            </div>
+          </div>
+          <input type="file" id="file-input-iv-spectra" multiple accept=".abs,.csv,.txt" style="display:none" />
+          <div id="paste-iv-spectra" class="paste-panel" style="display:none">
+            <textarea class="paste-box" placeholder="Paste .abs / CSV content here…"></textarea>
+            <div class="toolbar">
+              <button class="btn primary small" data-action="import-paste" data-tab="iv" data-role="spectra">Import</button>
+              <button class="btn small" data-action="cancel-paste" data-tab="iv" data-role="spectra">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="iv-results"></div>
+
+      <div class="section" id="iv-k-finder-section" style="display:none">
+        <div class="section-head">
+          <h2>K Calibration Finder</h2>
+          <span class="hint">Enter a known "Iv_meas" (mcd) from a reference machine for ≥1 row above (ideally ≥3, at different brightness levels), then find K.</span>
+        </div>
+        <div class="toolbar">
+          <button class="btn primary" id="btn-iv-find-k">Find K from samples with known Iv_meas</button>
+        </div>
+        <div id="iv-k-finder-results"></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="src/bundle.js"></script>
+</body>
+</html>
